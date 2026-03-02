@@ -22,27 +22,105 @@ export default function Home() {
     },
   };
 
-  const transformText = (text: string, type: "bold" | "italic") => {
-    return text
-      .split("")
+  const stripFormatting = (text: string, type: string) => {
+    if (type === "underline") return text.replace(/\u0332/g, "");
+    if (type === "strike") return text.replace(/\u0336/g, "");
+
+    return Array.from(text)
       .map((char) => {
-        const code = char.charCodeAt(0);
-        if (code >= 65 && code <= 90) {
-          // Uppercase
-          return String.fromCodePoint(unicodeMap[type].caps + (code - 65));
-        } else if (code >= 97 && code <= 122) {
-          // Lowercase
-          return String.fromCodePoint(unicodeMap[type].lower + (code - 97));
-        } else if (type === "bold" && code >= 48 && code <= 57) {
-          // Digits (only bold supports digits in this map)
-          return String.fromCodePoint(unicodeMap[type].digits + (code - 48));
+        const cp = char.codePointAt(0);
+        if (!cp) return char;
+
+        if (type === "bold") {
+          if (cp >= 0x1d5d4 && cp <= 0x1d5ed)
+            return String.fromCharCode(cp - 0x1d5d4 + 65);
+          if (cp >= 0x1d5ee && cp <= 0x1d607)
+            return String.fromCharCode(cp - 0x1d5ee + 97);
+          if (cp >= 0x1d7ec && cp <= 0x1d7f5)
+            return String.fromCharCode(cp - 0x1d7ec + 48);
+        }
+        if (type === "italic") {
+          if (cp >= 0x1d63c && cp <= 0x1d655)
+            return String.fromCharCode(cp - 0x1d63c + 65);
+          if (cp >= 0x1d656 && cp <= 0x1d66f)
+            return String.fromCharCode(cp - 0x1d656 + 97);
         }
         return char;
       })
       .join("");
   };
 
-  const applyFormatting = (type: "bold" | "italic" | "bullet") => {
+  const isFormatted = (text: string, type: string) => {
+    if (!text) return false;
+    if (type === "underline") return /\u0332/.test(text);
+    if (type === "strike") return /\u0336/.test(text);
+
+    return Array.from(text).every((char) => {
+      const cp = char.codePointAt(0);
+      if (!cp) return false;
+      if (type === "bold") {
+        return (
+          (cp >= 0x1d5d4 && cp <= 0x1d607) || (cp >= 0x1d7ec && cp <= 0x1d7f5)
+        );
+      }
+      if (type === "italic") {
+        return cp >= 0x1d63c && cp <= 0x1d66f;
+      }
+      return false;
+    });
+  };
+
+  const transformText = (
+    text: string,
+    type:
+      | "bold"
+      | "italic"
+      | "underline"
+      | "strike"
+      | "uppercase"
+      | "lowercase",
+  ) => {
+    if (type === "uppercase") return text.toUpperCase();
+    if (type === "lowercase") return text.toLowerCase();
+
+    // If it's underline or strike, we can just add the combining character to each base char
+    if (type === "underline" || type === "strike") {
+      const mark = type === "underline" ? "\u0332" : "\u0336";
+      return text
+        .split("")
+        .map((c) => c + mark)
+        .join("");
+    }
+
+    return Array.from(text)
+      .map((char) => {
+        const code = char.charCodeAt(0);
+        if (code >= 65 && code <= 90) {
+          return String.fromCodePoint(
+            unicodeMap[type === "bold" ? "bold" : "italic"].caps + (code - 65),
+          );
+        } else if (code >= 97 && code <= 122) {
+          return String.fromCodePoint(
+            unicodeMap[type === "bold" ? "bold" : "italic"].lower + (code - 97),
+          );
+        } else if (type === "bold" && code >= 48 && code <= 57) {
+          return String.fromCodePoint(unicodeMap.bold.digits + (code - 48));
+        }
+        return char;
+      })
+      .join("");
+  };
+
+  const applyFormatting = (
+    type:
+      | "bold"
+      | "italic"
+      | "bullet"
+      | "underline"
+      | "strike"
+      | "uppercase"
+      | "lowercase",
+  ) => {
     const textarea = textareaRef.current;
     if (!textarea) return;
 
@@ -67,7 +145,16 @@ export default function Home() {
       }
     } else {
       if (!selectedText) return;
-      newText = transformText(selectedText, type);
+
+      // Check for toggle
+      if (
+        ["bold", "italic", "underline", "strike"].includes(type) &&
+        isFormatted(selectedText, type)
+      ) {
+        newText = stripFormatting(selectedText, type);
+      } else {
+        newText = transformText(selectedText, type);
+      }
     }
 
     const updatedContent =
@@ -152,6 +239,34 @@ export default function Home() {
                     I
                   </button>
                   <button
+                    onClick={() => applyFormatting("underline")}
+                    className="w-10 h-10 hover:bg-gray-50 rounded flex items-center justify-center text-[16px] underline text-gray-700 transition-colors"
+                    title="Underline"
+                  >
+                    U
+                  </button>
+                  <button
+                    onClick={() => applyFormatting("strike")}
+                    className="w-10 h-10 hover:bg-gray-50 rounded flex items-center justify-center text-[16px] line-through text-gray-700 transition-colors"
+                    title="Strikethrough"
+                  >
+                    S
+                  </button>
+                  <button
+                    onClick={() => applyFormatting("uppercase")}
+                    className="w-10 h-10 hover:bg-gray-50 rounded flex items-center justify-center text-[14px] font-bold text-gray-700 transition-colors"
+                    title="Uppercase"
+                  >
+                    AA
+                  </button>
+                  <button
+                    onClick={() => applyFormatting("lowercase")}
+                    className="w-10 h-10 hover:bg-gray-50 rounded flex items-center justify-center text-[14px] font-medium text-gray-700 transition-colors"
+                    title="Lowercase"
+                  >
+                    aa
+                  </button>
+                  <button
                     onClick={() => applyFormatting("bullet")}
                     className="w-10 h-10 hover:bg-gray-50 rounded flex items-center justify-center transition-colors"
                     title="Bullet List"
@@ -193,23 +308,6 @@ export default function Home() {
                       />
                     </svg>
                   </button>
-                </div>
-
-                <div className="flex items-center gap-3">
-                  <span className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.1em]">
-                    Hashtags:
-                  </span>
-                  <div className="flex items-center gap-1.5 flex-wrap">
-                    {hashtags.map((tag) => (
-                      <button
-                        key={tag}
-                        onClick={() => addHashtag(tag)}
-                        className="px-2.5 py-1 bg-[#f3f6f8] hover:bg-[#e0e0e0] text-[#666666] rounded-md text-[12px] font-semibold transition-colors"
-                      >
-                        {tag}
-                      </button>
-                    ))}
-                  </div>
                 </div>
               </div>
 
