@@ -1,17 +1,96 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import Image from "next/image";
 
 export default function Home() {
   const [content, setContent] = useState("");
-  const [hashtags, setHashtags] = useState([
-    "#networking",
-    "#career",
-    "#growth",
-  ]);
+  const [hashtags] = useState(["#networking", "#career", "#growth"]);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const maxChars = 3000;
   const progress = (content.length / maxChars) * 100;
+
+  const unicodeMap: Record<string, Record<string, number>> = {
+    bold: {
+      caps: 0x1d5d4,
+      lower: 0x1d5ee,
+      digits: 0x1d7ec,
+    },
+    italic: {
+      caps: 0x1d63c,
+      lower: 0x1d656,
+    },
+  };
+
+  const transformText = (text: string, type: "bold" | "italic") => {
+    return text
+      .split("")
+      .map((char) => {
+        const code = char.charCodeAt(0);
+        if (code >= 65 && code <= 90) {
+          // Uppercase
+          return String.fromCodePoint(unicodeMap[type].caps + (code - 65));
+        } else if (code >= 97 && code <= 122) {
+          // Lowercase
+          return String.fromCodePoint(unicodeMap[type].lower + (code - 97));
+        } else if (type === "bold" && code >= 48 && code <= 57) {
+          // Digits (only bold supports digits in this map)
+          return String.fromCodePoint(unicodeMap[type].digits + (code - 48));
+        }
+        return char;
+      })
+      .join("");
+  };
+
+  const applyFormatting = (type: "bold" | "italic" | "bullet") => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const selectedText = content.substring(start, end);
+
+    let newText = "";
+    if (type === "bullet") {
+      const lines = selectedText.split("\n");
+      newText = lines
+        .map((line) => (line.trim() ? `• ${line}` : line))
+        .join("\n");
+      if (
+        !selectedText &&
+        !content.slice(0, start).endsWith("\n") &&
+        start !== 0
+      ) {
+        newText = "\n• ";
+      } else if (!selectedText) {
+        newText = "• ";
+      }
+    } else {
+      if (!selectedText) return;
+      newText = transformText(selectedText, type);
+    }
+
+    const updatedContent =
+      content.substring(0, start) + newText + content.substring(end);
+    setContent(updatedContent);
+
+    // Reset cursor position after state update
+    setTimeout(() => {
+      textarea.focus();
+      textarea.setSelectionRange(
+        start + newText.length,
+        start + newText.length,
+      );
+    }, 0);
+  };
+
+  const addHashtag = (tag: string) => {
+    const textarea = textareaRef.current;
+    const space = content.length > 0 && !content.endsWith(" ") ? " " : "";
+    const updatedContent = content + space + tag + " ";
+    setContent(updatedContent);
+    setTimeout(() => textarea?.focus(), 0);
+  };
 
   const handleCopy = () => {
     navigator.clipboard.writeText(content);
@@ -23,11 +102,6 @@ export default function Home() {
       <nav className="h-16 bg-white border-b border-[#e0e0e0] sticky top-0 z-50">
         <div className="max-w-7xl mx-auto h-full px-6 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-[#0a66c2] rounded flex items-center justify-center shadow-sm">
-              <span className="text-white font-bold text-xl leading-none font-serif relative -top-[1px]">
-                in
-              </span>
-            </div>
             <h1 className="text-[20px] font-bold tracking-tight text-[#000000e6]">
               PostCrafter
             </h1>
@@ -59,17 +133,29 @@ export default function Home() {
         <div className="grid grid-cols-2 lg:grid-cols-[1fr,420px] gap-8 items-start">
           {/* Editor Column */}
           <div className="flex flex-col gap-4">
-            <div className="bg-white rounded-xl border border-[#e0e0e0] shadow-sm overflow-hidden flex flex-col min-h-[750px] relative">
+            <div className="bg-white rounded-xl border border-[#e0e0e0] shadow-sm overflow-hidden flex flex-col min-h-[650px] relative">
               {/* Toolbar */}
               <div className="px-6 py-4 border-b border-[#f3f3f3] flex items-center justify-between">
                 <div className="flex items-center gap-1">
-                  <button className="w-10 h-10 hover:bg-gray-50 rounded flex items-center justify-center text-[16px] font-bold text-gray-700 transition-colors">
+                  <button
+                    onClick={() => applyFormatting("bold")}
+                    className="w-10 h-10 hover:bg-gray-50 rounded flex items-center justify-center text-[16px] font-bold text-gray-700 transition-colors"
+                    title="Bold"
+                  >
                     B
                   </button>
-                  <button className="w-10 h-10 hover:bg-gray-50 rounded flex items-center justify-center text-[16px] italic text-gray-700 transition-colors font-serif">
+                  <button
+                    onClick={() => applyFormatting("italic")}
+                    className="w-10 h-10 hover:bg-gray-50 rounded flex items-center justify-center text-[16px] italic text-gray-700 transition-colors font-serif"
+                    title="Italic"
+                  >
                     I
                   </button>
-                  <button className="w-10 h-10 hover:bg-gray-50 rounded flex items-center justify-center transition-colors">
+                  <button
+                    onClick={() => applyFormatting("bullet")}
+                    className="w-10 h-10 hover:bg-gray-50 rounded flex items-center justify-center transition-colors"
+                    title="Bullet List"
+                  >
                     <svg
                       width="20"
                       height="20"
@@ -117,6 +203,7 @@ export default function Home() {
                     {hashtags.map((tag) => (
                       <button
                         key={tag}
+                        onClick={() => addHashtag(tag)}
                         className="px-2.5 py-1 bg-[#f3f6f8] hover:bg-[#e0e0e0] text-[#666666] rounded-md text-[12px] font-semibold transition-colors"
                       >
                         {tag}
@@ -127,14 +214,13 @@ export default function Home() {
               </div>
 
               {/* Text Area */}
-              <div className="flex-1">
-                <textarea
-                  value={content}
-                  onChange={(e) => setContent(e.target.value)}
-                  placeholder="What do you want to talk about today?"
-                  className="w-full h-full p-8 text-[20px] leading-[1.6] resize-none focus:outline-none placeholder:text-gray-300 text-gray-800"
-                />
-              </div>
+              <textarea
+                ref={textareaRef}
+                value={content}
+                onChange={(e) => setContent(e.target.value)}
+                placeholder="What do you want to talk about today?"
+                className="flex-1 w-full p-8 text-[20px] leading-[1.6] resize-none focus:outline-none placeholder:text-gray-300 text-gray-800"
+              />
 
               {/* Progress Footer */}
               <div className="px-8 py-5 border-t border-[#f3f3f3] flex items-center justify-between bg-white">
