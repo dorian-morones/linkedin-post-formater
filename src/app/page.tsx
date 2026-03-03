@@ -1,186 +1,41 @@
 "use client";
 
 import { useState, useRef } from "react";
-import Image from "next/image";
+import { Toolbar } from "@/components/Toolbar";
+import { useTextFormatter } from "@/hooks/useTextFormatter";
 
 export default function Home() {
   const [content, setContent] = useState("");
-  const [hashtags] = useState(["#networking", "#career", "#growth"]);
+  const [copied, setCopied] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const maxChars = 3000;
   const progress = (content.length / maxChars) * 100;
 
-  const unicodeMap: Record<string, Record<string, number>> = {
-    bold: {
-      caps: 0x1d5d4,
-      lower: 0x1d5ee,
-      digits: 0x1d7ec,
-    },
-    italic: {
-      caps: 0x1d63c,
-      lower: 0x1d656,
-    },
-  };
+  const { applyFormat, activeFormats, updateActiveFormats } = useTextFormatter(
+    textareaRef,
+    content,
+    setContent,
+  );
 
-  const stripFormatting = (text: string, type: string) => {
-    if (type === "underline") return text.replace(/\u0332/g, "");
-    if (type === "strike") return text.replace(/\u0336/g, "");
-
-    return Array.from(text)
-      .map((char) => {
-        const cp = char.codePointAt(0);
-        if (!cp) return char;
-
-        if (type === "bold") {
-          if (cp >= 0x1d5d4 && cp <= 0x1d5ed)
-            return String.fromCharCode(cp - 0x1d5d4 + 65);
-          if (cp >= 0x1d5ee && cp <= 0x1d607)
-            return String.fromCharCode(cp - 0x1d5ee + 97);
-          if (cp >= 0x1d7ec && cp <= 0x1d7f5)
-            return String.fromCharCode(cp - 0x1d7ec + 48);
-        }
-        if (type === "italic") {
-          if (cp >= 0x1d63c && cp <= 0x1d655)
-            return String.fromCharCode(cp - 0x1d63c + 65);
-          if (cp >= 0x1d656 && cp <= 0x1d66f)
-            return String.fromCharCode(cp - 0x1d656 + 97);
-        }
-        return char;
-      })
-      .join("");
-  };
-
-  const isFormatted = (text: string, type: string) => {
-    if (!text) return false;
-    if (type === "underline") return /\u0332/.test(text);
-    if (type === "strike") return /\u0336/.test(text);
-
-    return Array.from(text).every((char) => {
-      const cp = char.codePointAt(0);
-      if (!cp) return false;
-      if (type === "bold") {
-        return (
-          (cp >= 0x1d5d4 && cp <= 0x1d607) || (cp >= 0x1d7ec && cp <= 0x1d7f5)
-        );
-      }
-      if (type === "italic") {
-        return cp >= 0x1d63c && cp <= 0x1d66f;
-      }
-      return false;
-    });
-  };
-
-  const transformText = (
-    text: string,
-    type:
-      | "bold"
-      | "italic"
-      | "underline"
-      | "strike"
-      | "uppercase"
-      | "lowercase",
-  ) => {
-    if (type === "uppercase") return text.toUpperCase();
-    if (type === "lowercase") return text.toLowerCase();
-
-    // If it's underline or strike, we can just add the combining character to each base char
-    if (type === "underline" || type === "strike") {
-      const mark = type === "underline" ? "\u0332" : "\u0336";
-      return text
-        .split("")
-        .map((c) => c + mark)
-        .join("");
+  const handleCopy = async () => {
+    if (!content) return;
+    try {
+      await navigator.clipboard.writeText(content);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // Fallback for browsers that block clipboard API
+      const ta = document.createElement("textarea");
+      ta.value = content;
+      ta.style.position = "fixed";
+      ta.style.opacity = "0";
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand("copy");
+      document.body.removeChild(ta);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
     }
-
-    return Array.from(text)
-      .map((char) => {
-        const code = char.charCodeAt(0);
-        if (code >= 65 && code <= 90) {
-          return String.fromCodePoint(
-            unicodeMap[type === "bold" ? "bold" : "italic"].caps + (code - 65),
-          );
-        } else if (code >= 97 && code <= 122) {
-          return String.fromCodePoint(
-            unicodeMap[type === "bold" ? "bold" : "italic"].lower + (code - 97),
-          );
-        } else if (type === "bold" && code >= 48 && code <= 57) {
-          return String.fromCodePoint(unicodeMap.bold.digits + (code - 48));
-        }
-        return char;
-      })
-      .join("");
-  };
-
-  const applyFormatting = (
-    type:
-      | "bold"
-      | "italic"
-      | "bullet"
-      | "underline"
-      | "strike"
-      | "uppercase"
-      | "lowercase",
-  ) => {
-    const textarea = textareaRef.current;
-    if (!textarea) return;
-
-    const start = textarea.selectionStart;
-    const end = textarea.selectionEnd;
-    const selectedText = content.substring(start, end);
-
-    let newText = "";
-    if (type === "bullet") {
-      const lines = selectedText.split("\n");
-      newText = lines
-        .map((line) => (line.trim() ? `• ${line}` : line))
-        .join("\n");
-      if (
-        !selectedText &&
-        !content.slice(0, start).endsWith("\n") &&
-        start !== 0
-      ) {
-        newText = "\n• ";
-      } else if (!selectedText) {
-        newText = "• ";
-      }
-    } else {
-      if (!selectedText) return;
-
-      // Check for toggle
-      if (
-        ["bold", "italic", "underline", "strike"].includes(type) &&
-        isFormatted(selectedText, type)
-      ) {
-        newText = stripFormatting(selectedText, type);
-      } else {
-        newText = transformText(selectedText, type);
-      }
-    }
-
-    const updatedContent =
-      content.substring(0, start) + newText + content.substring(end);
-    setContent(updatedContent);
-
-    // Reset cursor position after state update
-    setTimeout(() => {
-      textarea.focus();
-      textarea.setSelectionRange(
-        start + newText.length,
-        start + newText.length,
-      );
-    }, 0);
-  };
-
-  const addHashtag = (tag: string) => {
-    const textarea = textareaRef.current;
-    const space = content.length > 0 && !content.endsWith(" ") ? " " : "";
-    const updatedContent = content + space + tag + " ";
-    setContent(updatedContent);
-    setTimeout(() => textarea?.focus(), 0);
-  };
-
-  const handleCopy = () => {
-    navigator.clipboard.writeText(content);
   };
 
   return (
@@ -188,30 +43,54 @@ export default function Home() {
       {/* Header */}
       <nav className="h-16 bg-white border-b border-[#e0e0e0] sticky top-0 z-50">
         <div className="max-w-7xl mx-auto h-full px-6 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <h1 className="text-[20px] font-bold tracking-tight text-[#000000e6]">
-              PostCrafter
-            </h1>
-          </div>
+          <h1 className="text-[20px] font-bold tracking-tight text-[#000000e6]">
+            PostCrafter
+          </h1>
           <button
             onClick={handleCopy}
-            className="flex items-center gap-2 bg-[#0a66c2] hover:bg-[#004182] active:scale-[0.98] transition-all text-white font-semibold py-2 px-6 rounded-full text-[14px] shadow-sm"
+            disabled={!content}
+            className={`flex items-center gap-2 transition-all text-white font-semibold py-2 px-6 rounded-full text-[14px] shadow-sm active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed ${
+              copied
+                ? "bg-green-600 hover:bg-green-700"
+                : "bg-[#0a66c2] hover:bg-[#004182]"
+            }`}
           >
-            <svg
-              width="18"
-              height="18"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              className="mr-1"
-            >
-              <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
-              <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
-            </svg>
-            Copy to Clipboard
+            {copied ? (
+              <>
+                <svg
+                  width="18"
+                  height="18"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="mr-1"
+                >
+                  <polyline points="20 6 9 17 4 12" />
+                </svg>
+                Copied!
+              </>
+            ) : (
+              <>
+                <svg
+                  width="18"
+                  height="18"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="mr-1"
+                >
+                  <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+                  <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+                </svg>
+                Copy to Clipboard
+              </>
+            )}
           </button>
         </div>
       </nav>
@@ -222,93 +101,8 @@ export default function Home() {
           <div className="flex flex-col gap-4">
             <div className="bg-white rounded-xl border border-[#e0e0e0] shadow-sm overflow-hidden flex flex-col min-h-[650px] relative">
               {/* Toolbar */}
-              <div className="px-6 py-4 border-b border-[#f3f3f3] flex items-center justify-between">
-                <div className="flex items-center gap-1">
-                  <button
-                    onClick={() => applyFormatting("bold")}
-                    className="w-10 h-10 hover:bg-gray-50 rounded flex items-center justify-center text-[16px] font-bold text-gray-700 transition-colors"
-                    title="Bold"
-                  >
-                    B
-                  </button>
-                  <button
-                    onClick={() => applyFormatting("italic")}
-                    className="w-10 h-10 hover:bg-gray-50 rounded flex items-center justify-center text-[16px] italic text-gray-700 transition-colors font-serif"
-                    title="Italic"
-                  >
-                    I
-                  </button>
-                  <button
-                    onClick={() => applyFormatting("underline")}
-                    className="w-10 h-10 hover:bg-gray-50 rounded flex items-center justify-center text-[16px] underline text-gray-700 transition-colors"
-                    title="Underline"
-                  >
-                    U
-                  </button>
-                  <button
-                    onClick={() => applyFormatting("strike")}
-                    className="w-10 h-10 hover:bg-gray-50 rounded flex items-center justify-center text-[16px] line-through text-gray-700 transition-colors"
-                    title="Strikethrough"
-                  >
-                    S
-                  </button>
-                  <button
-                    onClick={() => applyFormatting("uppercase")}
-                    className="w-10 h-10 hover:bg-gray-50 rounded flex items-center justify-center text-[14px] font-bold text-gray-700 transition-colors"
-                    title="Uppercase"
-                  >
-                    AA
-                  </button>
-                  <button
-                    onClick={() => applyFormatting("lowercase")}
-                    className="w-10 h-10 hover:bg-gray-50 rounded flex items-center justify-center text-[14px] font-medium text-gray-700 transition-colors"
-                    title="Lowercase"
-                  >
-                    aa
-                  </button>
-                  <button
-                    onClick={() => applyFormatting("bullet")}
-                    className="w-10 h-10 hover:bg-gray-50 rounded flex items-center justify-center transition-colors"
-                    title="Bullet List"
-                  >
-                    <svg
-                      width="20"
-                      height="20"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2.5"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      className="text-gray-600"
-                    >
-                      <line x1="8" y1="6" x2="21" y2="6" />
-                      <line x1="8" y1="12" x2="21" y2="12" />
-                      <line x1="8" y1="18" x2="21" y2="18" />
-                      <circle
-                        cx="3"
-                        cy="6"
-                        r="1.5"
-                        fill="currentColor"
-                        stroke="none"
-                      />
-                      <circle
-                        cx="3"
-                        cy="12"
-                        r="1.5"
-                        fill="currentColor"
-                        stroke="none"
-                      />
-                      <circle
-                        cx="3"
-                        cy="18"
-                        r="1.5"
-                        fill="currentColor"
-                        stroke="none"
-                      />
-                    </svg>
-                  </button>
-                </div>
+              <div className="px-6 py-4 border-b border-[#f3f3f3]">
+                <Toolbar onFormat={applyFormat} activeFormats={activeFormats} />
               </div>
 
               {/* Text Area */}
@@ -316,6 +110,9 @@ export default function Home() {
                 ref={textareaRef}
                 value={content}
                 onChange={(e) => setContent(e.target.value)}
+                onSelect={updateActiveFormats}
+                onKeyUp={updateActiveFormats}
+                onMouseUp={updateActiveFormats}
                 placeholder="What do you want to talk about today?"
                 className="flex-1 w-full p-8 text-[20px] leading-[1.6] resize-none focus:outline-none placeholder:text-gray-300 text-gray-800"
               />
@@ -336,7 +133,7 @@ export default function Home() {
                 </div>
                 <div className="w-[180px] h-2 bg-[#f3f6f8] rounded-full overflow-hidden">
                   <div
-                    className={`h-full transition-all duration-500 ease-out`}
+                    className="h-full transition-all duration-500 ease-out"
                     style={{
                       width: `${Math.min(progress, 100)}%`,
                       backgroundColor:
@@ -345,6 +142,43 @@ export default function Home() {
                   />
                 </div>
               </div>
+            </div>
+
+            {/* Pro Tips Card */}
+            <div className="bg-white rounded-xl border border-[#e0e0e0] shadow-sm p-6">
+              <h2 className="text-[12px] font-bold text-[#666666] uppercase tracking-[0.08em] mb-5">
+                Pro Tips
+              </h2>
+              <ul className="flex flex-col gap-4">
+                {[
+                  "Hook readers in the first 3 lines before the \u201csee more\u201d cutoff.",
+                  "Use white space between paragraphs for better readability.",
+                  "Aim for 3-5 relevant hashtags.",
+                ].map((tip) => (
+                  <li
+                    key={tip}
+                    className="flex gap-3 items-start text-[#000000e6]"
+                  >
+                    <div className="text-green-600 shrink-0 mt-0.5">
+                      <svg
+                        width="18"
+                        height="18"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="3"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      >
+                        <polyline points="20 6 9 17 4 12" />
+                      </svg>
+                    </div>
+                    <span className="text-[13px] leading-relaxed font-medium">
+                      {tip}
+                    </span>
+                  </li>
+                ))}
+              </ul>
             </div>
           </div>
 
@@ -466,73 +300,6 @@ export default function Home() {
                   </button>
                 </div>
               </div>
-            </div>
-
-            {/* Pro Tips Card */}
-            <div className="bg-white rounded-xl border border-[#e0e0e0] shadow-sm p-6">
-              <h2 className="text-[12px] font-bold text-[#666666] uppercase tracking-[0.08em] mb-5">
-                Pro Tips
-              </h2>
-              <ul className="flex flex-col gap-4">
-                <li className="flex gap-3 items-start text-[#000000e6]">
-                  <div className="text-green-600 shrink-0 mt-0.5">
-                    <svg
-                      width="18"
-                      height="18"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="3"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    >
-                      <polyline points="20 6 9 17 4 12" />
-                    </svg>
-                  </div>
-                  <span className="text-[13px] leading-relaxed font-medium">
-                    Hook readers in the first 3 lines before the "see more"
-                    cutoff.
-                  </span>
-                </li>
-                <li className="flex gap-3 items-start text-[#000000e6]">
-                  <div className="text-green-600 shrink-0 mt-0.5">
-                    <svg
-                      width="18"
-                      height="18"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="3"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    >
-                      <polyline points="20 6 9 17 4 12" />
-                    </svg>
-                  </div>
-                  <span className="text-[13px] leading-relaxed font-medium">
-                    Use white space between paragraphs for better readability.
-                  </span>
-                </li>
-                <li className="flex gap-3 items-start text-[#000000e6]">
-                  <div className="text-green-600 shrink-0 mt-0.5">
-                    <svg
-                      width="18"
-                      height="18"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="3"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    >
-                      <polyline points="20 6 9 17 4 12" />
-                    </svg>
-                  </div>
-                  <span className="text-[13px] leading-relaxed font-medium">
-                    Aim for 3-5 relevant hashtags.
-                  </span>
-                </li>
-              </ul>
             </div>
           </div>
         </div>
