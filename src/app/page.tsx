@@ -39,12 +39,24 @@ export default function Home() {
   };
 
   return (
-    <div className="min-h-screen bg-[#f3f6f8] text-[#191919] font-sans selection:bg-[#0a66c2]/20">
+    <div className="min-h-screen bg-gradient-to-br from-[#e8f0fe] via-[#f3f6f8] to-[#dce8f5] text-[#191919] font-sans selection:bg-[#0a66c2]/20">
       {/* Header */}
       <nav className="h-16 bg-white border-b border-[#e0e0e0] sticky top-0 z-50">
         <div className="max-w-7xl mx-auto h-full px-6 flex items-center justify-between">
-          <h1 className="text-[20px] font-bold tracking-tight text-[#000000e6]">
-            PostCrafter
+          <h1 className="flex items-center gap-2 text-[20px] font-bold tracking-tight text-[#000000e6]">
+            <svg
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
+            </svg>
+            Postmator
           </h1>
           <button
             onClick={handleCopy}
