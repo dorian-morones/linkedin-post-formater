@@ -316,6 +316,36 @@ export default function Home() {
           </div>
         </div>
       </main>
+
+      {/* Footer */}
+      <footer className="fixed bottom-0 left-0 right-0 bg-white/80 backdrop-blur-md border-t border-[#e0e0e0] flex items-center justify-center py-2.5 gap-2 text-[13px] text-[#888888]">
+        <span>Crafted with</span>
+        <svg
+          width="15"
+          height="15"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="#a0522d"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <path d="M17 8h1a4 4 0 1 1 0 8h-1" />
+          <path d="M3 8h14v9a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4Z" />
+          <line x1="6" y1="2" x2="6" y2="4" />
+          <line x1="10" y1="2" x2="10" y2="4" />
+          <line x1="14" y1="2" x2="14" y2="4" />
+        </svg>
+        <span>by</span>
+        <a
+          href="https://dorianmorones-com.vercel.app/projects"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="font-semibold text-[#191919] hover:text-[#0a66c2] transition-colors underline underline-offset-2 decoration-dotted"
+        >
+          Dorian Morones
+        </a>
+      </footer>
     </div>
   );
 }
