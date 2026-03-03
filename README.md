@@ -107,4 +107,4 @@ pnpm lint     # Run ESLint
 
 ## Author
 
-Built with ❤️ and ☕ by **[Dorian Morones](https://dorianmorones-com.vercel.app/projects)**
+**[Dorian Morones](https://dorianmorones-com.vercel.app/projects)**
