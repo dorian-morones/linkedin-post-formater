@@ -39,7 +39,7 @@ export default function Home() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#e8f0fe] via-[#f3f6f8] to-[#dce8f5] text-[#191919] font-sans selection:bg-[#0a66c2]/20">
+    <div className="min-h-screen bg-gradient-to-br from-white via-[#f4f4f5] to-[#d4d4d8] text-[#191919] font-sans selection:bg-[#0a66c2]/20">
       {/* Header */}
       <nav className="h-16 bg-white border-b border-[#e0e0e0] sticky top-0 z-50">
         <div className="max-w-7xl mx-auto h-full px-6 flex items-center justify-between">
@@ -61,10 +61,10 @@ export default function Home() {
           <button
             onClick={handleCopy}
             disabled={!content}
-            className={`flex items-center gap-2 transition-all text-white font-semibold py-2 px-6 rounded-full text-[14px] shadow-sm active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed ${
+            className={`flex items-center gap-2 transition-all font-semibold py-2 px-6 rounded-full text-[14px] shadow-sm active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed ${
               copied
-                ? "bg-green-600 hover:bg-green-700"
-                : "bg-[#0a66c2] hover:bg-[#004182]"
+                ? "bg-[#7c6f5b] hover:bg-[#6b5f4d] text-[#fdf8f0]"
+                : "bg-[#c8b89a] hover:bg-[#b8a88a] text-[#3d2f1f]"
             }`}
           >
             {copied ? (
